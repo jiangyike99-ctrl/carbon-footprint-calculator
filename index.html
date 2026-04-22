@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>食物碳足迹计算器 - 说真话版</title>
+    <style>
+        body {
+            font-family: system-ui, 'Segoe UI', sans-serif;
+            max-width: 600px;
+            margin: 30px auto;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 { font-size: 1.8rem; margin-top: 0; color: #1e4a2f; }
+        label { font-weight: bold; display: block; margin-top: 15px; }
+        select, input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 12px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        button {
+            margin-top: 25px;
+            background: #2c7a4d;
+            color: white;
+            border: none;
+            padding: 12px;
+            width: 100%;
+            border-radius: 40px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #1e5c3a;
+        }
+        .result {
+            margin-top: 25px;
+            padding: 18px;
+            background: #f0f2f0;
+            border-radius: 16px;
+            border-left: 6px solid #2c7a4d;
+        }
+        .truth {
+            margin-top: 12px;
+            font-weight: bold;
+            padding: 10px;
+            background: #fff0e0;
+            border-radius: 12px;
+            color: #a03e00;
+        }
+        .note {
+            font-size: 0.8rem;
+            color: gray;
+            margin-top: 20px;
+            text-align: center;
+        }
+        hr { margin: 20px 0; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>🥩 食物碳足迹计算器</h1>
+    <p>不讨好 · 只算真账</p>
+
+    <label>🥩 食物类型</label>
+    <select id="foodType">
+        <option value="beef">牛肉 (kg) – 最高碳排</option>
+        <option value="lamb">羊肉 (kg)</option>
+        <option value="cheese">奶酪 (kg)</option>
+        <option value="pork">猪肉 (kg)</option>
+        <option value="chicken">鸡肉 (kg)</option>
+        <option value="fish_farmed">养殖鱼 (kg)</option>
+        <option value="eggs">鸡蛋 (kg)</option>
+        <option value="rice">大米 (kg)</option>
+        <option value="milk">牛奶 (kg)</option>
+        <option value="tofu">豆腐/豆制品 (kg)</option>
+        <option value="potato">土豆/薯类 (kg)</option>
+        <option value="apple">苹果 (kg)</option>
+    </select>
+
+    <label>⚖️ 重量 (公斤，kg)</label>
+    <input type="number" id="weight" value="0.2" step="0.1" min="0">
+
+    <button onclick="calculateFoodFootprint()">🌍 算碳排放 · 听真话</button>
+
+    <div id="result" class="result">
+        等待计算...
+    </div>
+    <div class="note">
+        ⚠️ 排放因子基于全球平均数据（Poore & Nemecek, 2018 等），单位为 kg CO₂e / kg。<br>
+        真实数据会因产地、运输、包装而浮动，但数量级不会变：牛肉就是远高于植物。
+    </div>
+</div>
+
+<script>
+    // 碳排放因子：kg CO₂e / kg 产品（已考虑全生命周期：养殖/种植、加工、运输、包装）
+    const EMISSION_FACTORS = {
+        beef: 60.0,          // 牛肉  —— 最高
+        lamb: 24.0,          // 羊肉
+        cheese: 21.0,        // 奶酪
+        pork: 7.0,           // 猪肉
+        chicken: 6.0,        // 鸡肉
+        fish_farmed: 5.5,    // 养殖鱼
+        eggs: 4.5,           // 鸡蛋
+        rice: 3.5,           // 大米（甲烷排放较高）
+        milk: 3.0,           // 牛奶
+        tofu: 2.0,           // 豆腐/豆制品
+        potato: 0.5,         // 土豆
+        apple: 0.4           // 苹果
+    };
+
+    // 说真话函数：不美化，直接给结论
+    function getTruthMessage(emissionKg, foodName, weightKg) {
+        if (emissionKg <= 0.5) {
+            return `✅ 实话：这一份${foodName}碳排放只有${emissionKg.toFixed(1)} kg，对地球很友好。多数人低估了植物性食物的优势。`;
+        } else if (emissionKg <= 2.0) {
+            return `📊 实话：这一餐碳排放 ${emissionKg.toFixed(1)} kg，不算夸张，但如果你每天吃两份类似的食物，一个月就是 ${(emissionKg*60).toFixed(0)} kg，相当于开汽油车 ${(emissionKg*60/0.21).toFixed(0)} 公里。`;
+        } else if (emissionKg <= 6.0) {
+            return `⚠️ 实话：这一份${foodName}（${weightKg} kg）排放 ${emissionKg.toFixed(1)} kg CO₂e。作为参考：${emissionKg.toFixed(1)} kg 碳 ≈ 开车 ${(emissionKg/0.21).toFixed(0)} 公里。而且这只是你一餐的排放。`;
+        } else {
+            let carKm = (emissionKg / 0.21).toFixed(0);
+            let treeDays = (emissionKg / 0.5).toFixed(0);
+            return `🔴 难听的真话：这份${foodName}碳排放高达 ${emissionKg.toFixed(1)} kg CO₂e！\n开车 ${carKm} 公里才这么多。一棵树要花 ${treeDays} 天才能吸收掉。偶尔吃没问题，但如果你每周吃 3 次，你一个人的食物碳足迹就超过很多家庭的总额度。`;
+        }
+    }
+
+    function calculateFoodFootprint() {
+        const foodSelect = document.getElementById('foodType');
+        const foodKey = foodSelect.value;
+        const foodName = foodSelect.options[foodSelect.selectedIndex].text.split('–')[0].trim();
+        let weight = parseFloat(document.getElementById('weight').value);
+
+        if (isNaN(weight) || weight <= 0) {
+            document.getElementById('result').innerHTML = '<span style="color:red;">请输入有效重量（大于 0）</span>';
+            return;
+        }
+
+        const factor = EMISSION_FACTORS[foodKey];
+        const totalEmission = factor * weight;
+
+        let equivalent = "";
+        if (totalEmission > 0) {
+            const carKm = (totalEmission / 0.21).toFixed(1);
+            const smartphoneCharge = (totalEmission / 0.05).toFixed(0);
+            equivalent = `🚗 约等于开车 ${carKm} 公里 · 📱 约等于手机充电 ${smartphoneCharge} 次。`;
+        }
+
+        const truthMsg = getTruthMessage(totalEmission, foodName, weight);
+
+        let extraTruth = "";
+        if (foodKey === "beef" && weight >= 0.3) {
+            extraTruth = "<br>💥 再加一句：300g 牛排的碳足迹已经超过一周的素食（豆类 + 米饭 + 蔬菜）。没有人会因为你少吃一顿牛肉而指责你，但地球会记住。";
+        }
+
+        const resultHTML = `
+            <strong>🍽️ ${foodName} × ${weight} kg</strong><br>
+            🌫️ 碳排放：<span style="font-size:1.6rem; font-weight:bold;">${totalEmission.toFixed(1)} kg CO₂e</span><br>
+            ${equivalent}
+            <div class="truth">${truthMsg}${extraTruth}</div>
+            <hr>
+            <small>💡 对比：1kg 扁豆仅排放约 0.9 kg，1kg 牛肉 ≈ 60 kg。改变食物的碳影响远大于随手关灯。</small>
+        `;
+        document.getElementById('result').innerHTML = resultHTML;
+    }
+</script>
+</body>
+</html>
